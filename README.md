@@ -22,9 +22,11 @@ so this project makes Python support available independent
 of the Bison project.
 
 A final note: why do this project? There are several reasons.
-# Bison is the most advanced parser generator around. Additionally,
-  it is in on-going development and has a dedicated support team.
-# Provide principled support for SAX parsing in python. See
-  https://github.com/Unidata/yax.git for a discussion of the
-  related''yax'' project.
+
+1. Bison is the most advanced parser generator around. Additionally,
+   it is in on-going development and has a dedicated support team.
+
+2. Provide principled support for SAX parsing in python. See
+   https://github.com/Unidata/yax.git for a discussion of the
+   related''yax'' project.
 
