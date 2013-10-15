@@ -1,0 +1,91 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test python %parse-param and %lex-param"
+
+BASE=YYParser0.y
+B=YYParser
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+# testcase $1=case
+function testcase() {
+    FAILED=""
+    clean
+    rm -f $B.py $B.y
+    case $1 in 
+    p1) echo "%parse-param {parseparam1}" >> $B.y ;;
+    p2) echo "%parse-param {parseparam1}" >> $B.y
+        echo "%parse-param {parseparam2}" >> $B.y ;;
+    l1) echo "%lex-param {lexparam1}" >> $B.y ;;
+    l2) echo "%lex-param {lexparam1}" >> $B.y
+        echo "%lex-param {lexparam2}" >> $B.y ;;
+    lp) echo "%lex-param {lexparam1}" >> $B.y
+        echo "%parse-param {parseparam1}" >> $B.y ;;
+    esac
+    cat $BASE >> $B.y
+    bison $SK -o $B.py $B.y
+    tc=0
+    # look for markers in the .py file
+    case $1 in
+    p1)
+      c=`grep -c '^  def __init__[ ]*(self,[ ]*parseparam1[ ]*)' $B.py`
+      tc=`expr $tc + $c`
+      c=`grep -c '^    self.parseparam1 = parseparam1[ ]*$' $B.py`
+      tc=`expr $tc + $c`
+      ;;
+    p2)
+      c=`grep -c '^  def __init__[ ]*(self,[ ]*parseparam1,[ ]*parseparam2[ ]*)' $B.py`
+      tc=`expr $tc + $c`
+      c=`grep -c '^    self.parseparam1 = parseparam1[ ]*$' $B.py`
+      tc=`expr $tc + $c`
+      c=`grep -c '^    self.parseparam2 = parseparam2[ ]*$' $B.py`
+      tc=`expr $tc + $c`
+      ;;
+    l1)
+      c=`grep -c '^  def __init__[ ]*(self,[ ]*lexparam1[ ]*)' $B.py`
+      tc=`expr $tc + $c`
+      c=`grep -c '^    self.yylexer = YYLexer(lexparam1)[ ]*$' $B.py`
+      tc=`expr $tc + $c`
+      ;;
+    l2)
+      c=`grep -c '^  def __init__[ ]*(self,[ ]*lexparam1,[ ]*lexparam2[ ]*)' $B.py`
+      tc=`expr $tc + $c`
+      c=`grep -c '^    self.yylexer = YYLexer(lexparam1,lexparam2)[ ]*$' $B.py`
+      tc=`expr $tc + $c`
+      ;;
+    lp)
+      c=`grep -c '^  def __init__[ ]*(self,[ ]*lexparam1,[ ]*parseparam1[ ]*)' $B.py`
+      tc=`expr $tc + $c`
+      c=`grep -c '^    self.parseparam1 = parseparam1[ ]*$' $B.py`
+      tc=`expr $tc + $c`
+      c=`grep -c '^    self.yylexer = YYLexer(lexparam1)[ ]*$' $B.py`
+      tc=`expr $tc + $c`
+      ;;
+    esac  
+
+    case $1 in 
+    l1) if test "$tc" != '2' ; then FAILED=1; fi;;
+    l2) if test "$tc" != '2' ; then FAILED=1; fi;;
+    p1) if test "$tc" != '2' ; then FAILED=1; fi;;
+    p2) if test "$tc" != '3' ; then FAILED=1; fi;;
+    lp) if test "$tc" != '3' ; then FAILED=1; fi;;
+    esac
+    if test "x$FAIL" = x1; then
+      echo "***Fail: $1"
+    fi
+}
+
+function testall() {
+testcase p1
+testcase p2
+testcase l1
+testcase l2
+testcase lp
+}
+
+run

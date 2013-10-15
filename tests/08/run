@@ -1,0 +1,41 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test python position, and location types"
+
+B=YYParser
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function testcase {
+    tc=0
+    c=0
+    FAILED=""
+    clean
+    rm -f $B.py
+    bison $SK -o $B.py $B.y
+    python $B.py >./stdout 2>./stderr
+    # look for markers in the .py file
+    c=`grep -c '^class[ ]*MyLoc[ ]*:' $B.py`
+    tc=`expr $tc + $c` 
+    c=`grep -c '^class[ ]*MyPos[ ]*:' $B.py`
+    tc=`expr $tc + $c`
+    c=`grep -c '^[ ]*yylloc[ ]*=[ ]*MyLoc[ ]*(' $B.py`
+    tc=`expr $tc + $c`
+    c=`grep -c '^[ ]*MyPos (0,0)' $B.py`
+    tc=`expr $tc + $c`
+    if test "$tc" != 5 ; then
+      echo "***Fail: $1"
+      FAILED=1
+    fi
+}
+
+function testall() {
+testcase
+}
+
+run

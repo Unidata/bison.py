@@ -1,0 +1,249 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test push parsing: Calc parser with api.push-pull both"
+
+B=Calc
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function createinput() {
+cat >./input <<EOF
+1 + 2 * 3 = 7
+1 + 2 * -3 = -5
+
+-1^2 = -1
+(-1)^2 = 1
+
+---1 = -1
+
+1 - 2 - 3 = -4
+1 - (2 - 3) = 2
+
+2^2^3 = 256
+(2^2)^3 = 64
+EOF
+}
+
+function createexpout() {
+cat >./expout <<EOF
+Stack now 0
+Stack now 0 2
+Stack now 0 9
+Stack now 0 9 19
+Stack now 0 9 19 2
+Stack now 0 9 19 28
+Stack now 0 9 19 28 20
+Stack now 0 9 19 28 20 2
+Stack now 0 9 19 28 20 29
+Stack now 0 9 19 28
+Stack now 0 9
+Stack now 0 9 17
+Stack now 0 9 17 2
+Stack now 0 9 17 26
+Stack now 0 9
+Stack now 0 9 23
+Stack now 0 8
+Stack now 0 7
+Stack now 0 7 2
+Stack now 0 7 9
+Stack now 0 7 9 19
+Stack now 0 7 9 19 2
+Stack now 0 7 9 19 28
+Stack now 0 7 9 19 28 20
+Stack now 0 7 9 19 28 20 3
+Stack now 0 7 9 19 28 20 3 2
+Stack now 0 7 9 19 28 20 3 12
+Stack now 0 7 9 19 28 20 29
+Stack now 0 7 9 19 28
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 3
+Stack now 0 7 9 17 3 2
+Stack now 0 7 9 17 3 12
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 4
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 3
+Stack now 0 7 3 2
+Stack now 0 7 3 12
+Stack now 0 7 3 12 22
+Stack now 0 7 3 12 22 2
+Stack now 0 7 3 12 22 31
+Stack now 0 7 3 12
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 3
+Stack now 0 7 9 17 3 2
+Stack now 0 7 9 17 3 12
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 5
+Stack now 0 7 5 3
+Stack now 0 7 5 3 2
+Stack now 0 7 5 3 12
+Stack now 0 7 5 14
+Stack now 0 7 5 14 25
+Stack now 0 7 9
+Stack now 0 7 9 22
+Stack now 0 7 9 22 2
+Stack now 0 7 9 22 31
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 2
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 4
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 3
+Stack now 0 7 3 3
+Stack now 0 7 3 3 3
+Stack now 0 7 3 3 3 2
+Stack now 0 7 3 3 3 12
+Stack now 0 7 3 3 12
+Stack now 0 7 3 12
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 3
+Stack now 0 7 9 17 3 2
+Stack now 0 7 9 17 3 12
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 4
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 2
+Stack now 0 7 9
+Stack now 0 7 9 18
+Stack now 0 7 9 18 2
+Stack now 0 7 9 18 27
+Stack now 0 7 9
+Stack now 0 7 9 18
+Stack now 0 7 9 18 2
+Stack now 0 7 9 18 27
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 3
+Stack now 0 7 9 17 3 2
+Stack now 0 7 9 17 3 12
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 2
+Stack now 0 7 9
+Stack now 0 7 9 18
+Stack now 0 7 9 18 5
+Stack now 0 7 9 18 5 2
+Stack now 0 7 9 18 5 14
+Stack now 0 7 9 18 5 14 18
+Stack now 0 7 9 18 5 14 18 2
+Stack now 0 7 9 18 5 14 18 27
+Stack now 0 7 9 18 5 14
+Stack now 0 7 9 18 5 14 25
+Stack now 0 7 9 18 27
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 2
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 4
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 2
+Stack now 0 7 9
+Stack now 0 7 9 22
+Stack now 0 7 9 22 2
+Stack now 0 7 9 22 31
+Stack now 0 7 9 22 31 22
+Stack now 0 7 9 22 31 22 2
+Stack now 0 7 9 22 31 22 31
+Stack now 0 7 9 22 31
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 2
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 5
+Stack now 0 7 5 2
+Stack now 0 7 5 14
+Stack now 0 7 5 14 22
+Stack now 0 7 5 14 22 2
+Stack now 0 7 5 14 22 31
+Stack now 0 7 5 14
+Stack now 0 7 5 14 25
+Stack now 0 7 9
+Stack now 0 7 9 22
+Stack now 0 7 9 22 2
+Stack now 0 7 9 22 31
+Stack now 0 7 9
+Stack now 0 7 9 17
+Stack now 0 7 9 17 2
+Stack now 0 7 9 17 26
+Stack now 0 7 9
+Stack now 0 7 9 23
+Stack now 0 7 16
+Stack now 0 7
+Stack now 0 7 15
+EOF
+}
+
+function testcase {
+    tc=0
+    c=0
+    FAILED=""
+    clean
+    rm -f $B.py
+    # Generate a push + pull parser
+    bison -Dapi.push-pull=both $SK -o $B.py $B.y
+    # Verify we have a push parser
+    c=`grep -c '^  def  *push_parse_initialize *(self).*$' $B.py`
+    if test "x$c" != x1 ; then FAILED=1; fi
+    # Run the parser
+    createinput
+    python $B.py < ./input >./stdout 2>./stderr
+    # Extract the "Stack Now" lines from the error output
+    # and compare to file expout
+    createexpout
+    rm -f tmp
+    sed -e '/^Stack now.*$/p' -e d <./stderr >./tmp
+    if ! diff tmp expout ; then FAILED=1; fi
+
+    if test "$FAILED" == 1 ; then
+      echo "***Fail"
+    fi
+}
+
+function testall() {
+testcase
+}
+
+run
+
+

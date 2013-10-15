@@ -1,0 +1,44 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test python Calculator: Error detection"
+
+B=calc
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+# syntaxtest $1=input $2=errmsg $3=noeol
+function syntaxtest {
+    FAILED=""
+    clean
+    rm -f $B.py
+    bison $SK -o $B.py $B.y
+    rm -f tmp experr input
+    if test "x$3" = x ; then
+      echo "$1" >./input
+    else
+      echo -n "$1" >./input
+    fi
+    echo "$2" >./experr
+    python $B.py <./input >./stdout 2>./stderr
+    if ! diff -wBb experr stderr ; then
+      echo "***Fail: $1"
+      FAILED=1
+    fi
+}
+
+function testall() {
+syntaxtest "0 0" "1.3: syntax error, unexpected number"
+syntaxtest "1 / / 2" "1.5: syntax error, unexpected '/', expecting number or '-' or '(' or '!'"
+syntaxtest "error" "1.1: syntax error, unexpected \$undefined"
+syntaxtest "1 = 2 = 3" "1.7: syntax error, unexpected '='"
+syntaxtest "
++1" "2.2: syntax error, unexpected '+'"
+syntaxtest "" "1.1: syntax error, unexpected end of input" 1
+}
+
+run

@@ -1,0 +1,37 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test python constructor init"
+
+B=YYParser
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function testcase {
+    tc=0
+    c=0
+    FAILED=""
+    clean
+    rm -f $B.py
+    bison $SK -o $B.py $B.y
+    python $B.py >./stdout 2>./stderr
+    # look for markers in the .py file and stdout
+    c=`grep -c '^[ ]*sys.stdout.write("Initial action invoked\\\\n")[ ]*$' $B.py`
+    tc=`expr $tc + $c` 
+    c=`grep -c '^Initial action invoked[ ]*$' ./stdout`
+    tc=`expr $tc + $c`
+    if test "$tc" != 2 ; then
+      echo "***Fail: $1"
+      FAILED=1
+    fi
+}
+
+function testall() {
+testcase
+}
+
+run

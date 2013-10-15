@@ -1,0 +1,30 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test minimal parser"
+
+B=YYParser
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function testcase {
+    FAILED=""
+    clean
+    rm -f $B.py
+    bison $SK -o $B.py $B.y
+    #purely a compiles test
+    if ! python $B.py >./stdout 2>./stderr ; then
+      echo "***Fail: $1"
+      FAILED=1
+    fi
+}
+
+function testall() {
+testcase
+}
+
+run

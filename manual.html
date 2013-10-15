@@ -1,0 +1,691 @@
+<html>
+<!--
+This software is released under the terms of the Apache License version 2.
+For details of the license, see http://www.apache.org/licenses/LICENSE-2.0.
+-->
+<style>
+.break { page-break-before: always; }
+body { counter-reset: H2; font-size: 12pt; }
+h1 { counter-reset: H2; font-size: 18pt; }
+h2:before {
+  content: counter(H2) " ";
+  counter-increment: H2;
+}
+h2 { counter-reset: H3; }
+h3:before {
+  content: counter(H2) "." counter(H3) " ";
+  counter-increment:H3;
+}
+h3 { counter-reset: H4; }
+h4:before {
+  content: counter(H2) "." counter(H3) "." counter(H4) " ";
+  counter-increment:H4;
+}
+h4 { counter-reset: H5; }
+h5:before {
+  content: counter(H2) "." counter(H3) "." counter(H4) "." counter(H5) " ";
+  counter-increment:H5;
+}
+h6 {font-size: 16pt; margin-bottom: 0pt; padding: 0pt; } /* For TOC */
+</style>
+<body>
+
+<center>
+<h1>Python Skeleton for Bison</h1>
+<table>
+<tr><td>Created:<td>09/01/2013
+<tr><td>Last Revised:<td>10/11/2013<br>
+<tr><td>Version:<td>1.0
+<tr><td>Status:<td>Draft
+<tr><td>Author:<td>Dennis Heimbigner
+<tr><td>Affiliation:<td>Unidata/UCAR
+<tr><td>email:<td>dmh&#064;unida.ucar.edu
+</table>
+</center>
+<p>
+<p>
+<center>
+<b>WARNING: this document assumes the reader has significant
+experience with Bison and Python.
+Bison version 3.0 or later is required.
+</b>
+</center>
+
+<h6><u>Table of Contents</u></h6>
+<ol>
+<li> <a href="#Introduction">Introduction</a>
+<li> <a href="#skeleton">The Python Skeleton</a>
+<li> <a href="#misc">Miscellaneous notes</a>
+<li> <a href="#Python Parser Structure">Python Parser Structure</a>
+<li> <a href="#Python Bison Interface">Python Bison Interface</a>
+<li> <a href="#Python Semantic Values">Python Semantic Values</a>
+<li> <a href="#Python Location Values">Python Location Values</a>
+<li> <a href="#Python Parser Interface">Python Parser Interface</a>
+<li> <a href="#Python Scanner Interface">Python Scanner Interface</a>
+<li> <a href="#Special Features for Use in Python Actions">Special Features for Use in Python Actions</a>
+<li> <a href="#Python Push Parser Interface">Python Push Parser Interface</a>
+<li> <a href="#Differences between C/C++/Java and Python Grammars">Differences between C/C++/Java and Python Grammars</a>
+<li> <a href="#%code Summary">%code Summary</a>
+<li> <a href="#Misc. Directives">Miscellaneous Directives</a>
+<li> <a href="#references">References</a>
+<li> <a href="#changelog">Change Log</a>
+</ol>
+
+<h2 class="break"><a name="Introduction"><u>Introduction</u></a></h2>
+
+The goal of this project is allow the use of <i>Bison</i>
+to generate parsers for Python.
+The Gnu Bison system (http://www.gnu.org/software/bison/)
+is an extremely powerful compiler generator system.
+In its recent incarnations, it has been extended
+from its original C orientations to support the
+generation of additional parsers in C++ and Java.
+This project extends that support to include Python.
+<p>
+Ideally, the Python support would be included
+in the standard Bison distribution. That would
+entail, however, that the Bison development team
+have Python experience and the resources to support
+Python. Neither of these is true, so this project
+makes Python support available independent of the
+Bison project.
+<p>
+A final note: why do this project?
+The primary reason is to principled support for SAX parsing
+in python. See
+<a href="https://github.com/Unidata/yax.git">
+https://github.com/Unidata/yax.git</a>
+for a discussion of the <i>yax</i> project.
+
+<h2 class="break"><a name="skeleton"><u>The Python Skeleton</u></a></h2>
+The file "python.skel" is the key piece of software provided by this distribution.
+Given <i>python.skel</i>, one can take a standard Bison grammar file, "grammar.y", say,
+and create a python module capable of parsing input according to that grammar.
+The module is created using a command such as this.
+<pre>
+    bison -Spython.skel grammar.y
+</pre>
+The remainder of this document describes how to use the module
+and some of the quirks in using it.
+
+<h2 class="break"><a name="misc"><u>Miscellaneous notes</u></a></h2>
+
+There are a number of miscellaneous things to note about using python.skel.
+<ul>
+<li> The Bison language directive such "%language "python" should
+not be used because it is not recognized by the underlying Bison
+system. Using the "-Spython.skel" flag will guarantee that the correct
+language (i.e. python) will be used.
+<p>
+<li> GLR parsers are currently unsupported in Python.  Do not use the
+"glr-parser" directive.
+<p>
+<li> No header file can be generated for Python parsers.  Do not use the
+"%defines" directive or the "-d"/"--defines" options.
+<p>
+<p>
+<li> The current Python interface is experimental and may evolve.
+Any suggestions for improvement to the generated parser are welcome.
+</ul>
+
+<h2 class="break"><a name="Python Parser Structure"><u>Python Parser Structure</u></a></h2>
+
+Python presents some significant challenges for bison.  Bison has the
+notion of a C-like language built deeply into its code, and python
+violates a number of those notions.
+<p>
+The most important difference is that line indentation has
+syntactic and semantic significance.  Effort has been
+expended to ensure that this is not a significant problem:
+if a piece of code is written and is legitimate python, then
+is should work correctly inside the grammar file.  It is
+possible, however, that something could be incorrectly
+indented. If indentation errors occur when compiling the
+parser, the grammar writer must be prepared to examine the
+generated python code and adjust the indentation in the
+bison .y file.
+<p>
+There are, however, some heuristics that can help.
+<ul>
+<li>Never use tabs except insidestring constants.
+<p>
+<li> Assume that the code inside a "%code" or "%code qualifier" is at
+     indent level zero (0). It will be properly indented as needed.
+<p>
+<li> Single line actions (e.g. "{$$=...}") should cause no problems.
+<p>
+<li> Multiple line actions can be indented as desired, but note that
+     every line of the action will automatically  be indented by 4
+     blanks.
+</ul>
+In python code, line breaks can also have syntactic and semantic
+significance. This should not be problem as long as your code is legal
+python.
+<p>
+The python skeleton was derived from the Java skeleton, but there
+are many differences.
+Python treats a python file as defining a "module" (i.e. a
+single file) with an associated scope. In effect, the module
+is the equivalent of the Java parser class. This means that
+most definitions in the python module (the file) are at the
+outer scope. This means that no inner class definitions are
+used. In particular, the "%token"s are defined as constants
+in the module and not, as in Java, in the Lexer class.
+Further, any lexer defined using "%code lexer {...}" is
+installed in a top level class; it is not an inner class.
+
+<h2 class="break"><a name="Python Bison Interface"><u>Python Bison Interface</u></a></h2>
+
+Generating a Python parser from, say, "BASENAME.y", creates
+a single Python source file named "BASENAME.py" that
+contains the complete parser implementation.  Using a
+grammar file without a ".y" suffix is currently broken (a Bison bug).  The
+basename of the parser implementation file can be changed by
+the "%file-prefix" directive or the "-p&lt;name-prefix&gt;"
+command line option.  The entire parser implementation file name can be
+changed by the "%output" directive or the "-o"&lt;output-file-name&gt;"
+command line option.  The parser implementation file contains a single
+module for the parser.
+<p>
+Like the Java parsers, Python parsers maintain the state of the
+parser local to an instance of the parser class.  Therefore, all Python
+parsers are "pure", and the "%pure-parser" and "%define api.pure"
+directives do nothing when used in Python.
+<p>
+Currently, support for tracing is always compiled in.  Thus the
+"%define parse.trace" and "%token-table" directives and the
+"-t"/"--debug" and "-k"/"--token-table" options have no effect.  This
+may change in the future to eliminate unused code in the generated
+parser, so use "%define parse.trace" explicitly if needed.  Also, in
+the future the "%token-table" directive might enable a public interface
+to access the token names and codes.
+
+<h2 class="break"><a name="Python Semantic Values"><u>Python Semantic Values</u></a></h2>
+
+Python is a dynamically typed language, so there is no "%union"
+directive in Python parsers.  The "%type" or "%token" directives may be
+used to help bison do type checking, but they are not reflected in the
+generated code.  An important consequence is that type checking occurs
+at execution time.
+<p>
+The python semantic stack is declared to have members of any type.
+which means that the types you specify can be anything.
+<p>
+Python parsers do not support "%destructor". This may eventually
+change to use the python "del" statement, but until then, and as with
+any other python program, the programmer has to be careful to avoid
+circular references.
+<p>
+In addition, python parsers do not support "%printer", as
+"__str__()" or the "str()" builtin function can be used to print the
+semantic values.  This however may change (in a backwards-compatible
+way) in future versions.
+
+<h2 class="break"><a name="Python Location Values"><u>Python Location Values</u></a></h2>
+
+When the directive "%locations" is used, the Python parser supports
+location tracking. An auxiliary
+user-defined class defines a "position", a single point in a file;
+Bison itself defines a class representing a "location" as a range
+composed of a pair of positions (possibly spanning several files).  The
+name is "Location" by default, and may also be renamed using
+<quote>"%define api.location.type {CLASS-NAME}"</quote>.
+<p>
+The Location class treats the position as a completely opaque value.
+By default, the class name is "Position", but this can be changed with
+<quote>"%define api.position.type {CLASS-NAME}"</quote>.
+This class must be supplied by the user.
+<p>
+The Location class is defined this way.
+<pre>
+class Location:
+  # User varadic init to do what in Jave would use multiple constructors
+  def __init__ (self, *argv) :
+    if (len(argv) == 0) :
+      self.begin = None
+      self.end = self.begin
+    elif (len(argv) == 1) :
+      self.begin = argv[0]
+      self.begin = self.begin
+    else :
+      self.begin = argv[0]
+      self.end = argv[1]
+  # end __init__
+
+  # Print a representation of the location.
+  def __str__ (self) :
+    if (self.begin == self.end) :
+      return str(self.begin)
+    else :
+      return str(self.begin) + '-' + str(self.end)
+# end class Location
+</pre>
+Note that for "__str__()" to work properly, the
+position class should override the "__eq__" and "__ne__"
+methods appropriately.
+
+<h2 class="break"><a name="Python Parser Interface"><u>Python Parser Interface</u></a></h2>
+
+The name of the generated parser class defaults to "YYParser".  The
+"YY" prefix may be changed using the "%name-prefix" directive or the
+"-p"/"--name-prefix" option.  Alternatively, use
+<quote>"%define parser_class_name {NAME}"</quote>
+to give a custom name to the class.  The superclass of the
+parser class can be specified with the <quote>"%define extends"</quote>
+directive.
+<p>
+The Python module name is, of course, defined by the output file name.
+<p>
+Except for the module defined class, "Location" and the
+members described in the interface below, all the other
+members and fields are preceded with a "yy" or "YY" prefix
+to avoid clashes with user code.
+<p>
+The arguments to the parser class can be extended using the
+"%parse-param" directive. Each occurrence of the directive will add a
+field to the parser class"s "__init__" function.
+<p>
+The signatures  of the parser class externally used methods are
+as follows.
+<pre>
+class YYParser:
+  def __init__ (self, yylexer | lex_param, [parse_param]):
+    ...
+
+  def parse(self):
+    ...
+
+  def  yyerror(self, [location,] msg):
+    ...
+
+  def getErrorVerbose(self):
+     ...
+
+  def setErrorVerbose(self, tf):
+    ...
+
+  def getDebugStream(self):
+     ...
+
+  def setDebugStream(self, stream):
+    ...
+
+  def getDebugLevel(self):
+     ...
+
+  def setDebugLevel(self, level):
+    ...
+#end class YYParser
+</pre>
+The YYParser methods have the following semantics.
+<dl>
+<dt>def __init__ (self, yylexer | lex_param, [parse_param]):
+<dd>
+Constructor for YYParser.
+Recall that
+python allows only a single class constructor.  The defined named
+parameters are as follows.
+<ol>
+<li> self &mdash; This is a python cliche argument required for all class
+methods.
+<li> yylexer &mdash; Specify the yylex object. If "%code lexer{...}"
+is specified, then this argument will be replaced with
+any specifications of "%lex-param {param}".
+<li> parse_param &mdash; Specify the parse parameter(s) (if any).
+There are no other parameters, unless "%param"s and/or
+"%parse-param"s and/or "%lex-params" are used.
+</ol>
+<p>
+<dt> def parse(self):
+<dd>Run the syntactic analysis, and return "True" on success, other wise return "False".
+<p>
+<dt> def  yyerror(self, [location,] msg):
+<dd>
+Print an error message using the "yyerror" method defined in the
+Lexer instance given to the parser.  The second argument is only
+defined if the "%locations" directive is specified and specifies a
+location for the error.  It may be of (dynamic) type "Location".
+<p>
+<dt> def getErrorVerbose(self):
+<dt> def setErrorVerbose(self, tf):
+<dd>
+Get or set the option to produce verbose error messages.  These
+are only available with "%define parse.error verbose", which also
+turns on verbose error messages.
+<p>
+<dt> def getDebugStream(self):
+<dt> def setDebugStream(self, stream):
+<dd>
+Get or set the stream used for tracing the parsing.  It defaults to
+"sys.stderr".
+<p>
+<dt> def getDebugLevel(self):
+<dt> def setDebugLevel(self, level):
+<dd>
+Get or set the tracing level.  Currently its value is either 0, no
+trace, or nonzero, full tracing.
+</dl>
+
+<h2 class="break"><a name="Python Scanner Interface"><u>Python Scanner Interface</u></a></h2>
+
+As previously noted, the constants for the user-defined token names
+and the predefined "EOF" token are defined at the "module" level.
+
+The YYParser class must have an instance of "class Lexer".
+The lexer object can be provided in one
+of two ways.
+<ol>
+<li> The user can define a subclass of the class Lexer and pass
+an instance of it to the parser class.
+<li> The user can define the body of the Lexer class using the
+<quote>%code lexer {...}</quote> directive.
+</ol>
+<p>
+The interface to the Lexer class differs from e.g. Java in that it
+has only two primary methods (plus the location methods).
+<ul>
+<li> def yylex(self) --&gt; (int,Object): <br>
+     Python allows the return of multiple values, so a call to "yylex"
+     returns a two element tuple containing first the token (an
+     integer) and second the lval (an arbitrary python value).
+<p>
+<li> def yyerror (self,[location,]msg): <br>
+     This function is defined by the user to emit an error message.
+     The "location" parameter is omitted if location tracking is not
+     active.
+<p>
+<li> def getStartPos(self):<br>
+     def getEndPos(self):<br>
+     (Optional) As with the Java Lexer class, and only if location tracking
+     is enabled, position information is extracted using the
+     methods "getStartPos" and "getEndPos".
+</ul>
+WARNING: the parser code is expecting the token to be an integer.
+Unlike Java and C, single character constants are not automatically
+cast to integers, so the lexer must do that if necessary.  So, for
+example, returning 'a' is not the same as returning 97.
+
+<h2 class="break"<a name="Special Features for Use in Python Actions"><u>Special Features for Use in Python Actions</u></a></h2>
+
+The following special constructs are available for use in Python
+Actions.  Other analogous C or Java action features are currently
+unavailable for Python.
+<ul>
+<li> Variable: $N <br>
+     The semantic value for the Nth component of the current rule.
+     This may not be assigned to.
+<li> Variable: $$ <br>
+     The semantic value for the grouping made by the current rule.
+<li> Variable: @N <br>
+     The location information of the Nth component of the current rule.
+     This may not be assigned to.
+<li> Variable: @$ <br>
+     The location information of the grouping made by the current rule.
+<li> Statement: return YYABORT <br>
+     Return immediately from the parser, indicating failure.
+<li> Statement: return YYACCEPT <br>
+     Return immediately from the parser, indicating success.
+<li> Statement: return YYERROR<br>
+     Start error recovery (without printing an error message).
+</ul>
+
+<h2 class="break"><a name="Python Push Parser Interface"><u>Python Push Parser Interface</u></a></h2>
+
+Normally, Bison generates a pull parser for Python.  The following
+Bison declaration says that you want the parser to be a push parser
+<quote>%define api.push-pull push</quote>.
+Most of the discussion about the Python pull Parser Interface,
+applies to the push parser interface as well.
+<p>
+When generating a push parser, the method "YYParser.push_parse" is created
+with the following signature (depending on if locations are enabled).
+<pre>
+def push_parse(token, lval [, location]):
+</pre>
+The "token" is an integer matching one of the defined token
+constants.  The "lval" is the associated value; use "None" if there
+is no value.  The parameter "location" will be defined only if
+location tracking is enabled.
+<p>
+The primary difference with respect to a pull parser is that the
+parser method "push_parse" is invoked repeatedly to parse each token.
+This function is available if either the "%define api.push-pull push" or
+"%define api.push-pull both" declaration is used.
+<p>
+The value returned by the "push_parse" method is one of the following
+three constants: "YYABORT", "YYACCEPT", or "YYPUSH_MORE".  This new
+value, "YYPUSH_MORE", may be returned if more input is required to
+finish parsing the grammar.
+<p>
+If api.push-pull is declared as "both", then the generated parser
+class will also implement the "parse" method. This method"s body is a
+loop that repeatedly invokes the scanner and then passes the values
+obtained from the scanner to the "push_parse" method.
+<p>
+As with the Java push-parser, there is one additional complication.
+Technically, the push parser does not need to know about the scanner
+(i.e. an object implementing the "YYParser.Lexer" interface), but it
+does need access to the "yyerror" method.  Currently, the "yyerror"
+method is defined in the "YYParser.Lexer" interface. Hence, an
+implementation of that interface is still required in order to provide
+an implementation of "yyerror".  The current approach (and subject to
+change) is to require the "YYParser" constructor to be given an object
+implementing the "YYParser.Lexer" interface. This object need only
+implement the "yyerror" method; the other methods can be stubbed since
+they will never be invoked.  The simplest way to do this is to add a
+trivial scanner implementation to your grammar file using whatever
+implementation of "yyerror" is desired. The following code sample shows
+a simple way to accomplish this.
+<pre>
+%code lexer {
+  def yylex () : return (0,None)
+  def yyerror (msg) : syst.stderr.write(msg+"\n")
+}
+</pre>
+
+<h2 class="break"><a name="Differences between C/C++/Java and Python Grammars"><u>Differences between C/C++/Java and Python Grammars</u></a></h2>
+
+The different structure of the Python language forces several
+differences between grammars for other languages, and grammars designed
+for Python parsers.  This section and the next summarizes these differences.
+<ul>
+<li> Python lacks a preprocessor, so the "YYERROR",
+     "YYACCEPT", "YYABORT" symbols obviously cannot be
+     macros.  Instead, they should be preceded by "return"
+     when they appear in an action.  The actual definition
+     of these symbols is opaque to the Bison grammar, and it
+     might change in the future.  The only meaningful
+     operation that you can do, is to return them.  Note
+     that of these three symbols, only "YYACCEPT" and
+     "YYABORT" will cause a return from the "yyparse" method.
+<p>
+<li> Python is dynamically typed, so "%union", "%type", and
+     angle brackets on "%token", "type", "$N" and "$$" have
+     no consequences for the generated code. But typing of
+     terminals and non-terminals may still be useful to help
+     bison to do some type checking.
+<p>
+<li> Python supports exceptions, but there is no way to specify the
+     exceptions raised by a function. So, any exception related
+     directive is ignored.
+</ul>
+<p>
+The most important difference concerns how user defined actions are
+handled. In C,C++, and Java, a switch statement is used.  Python,
+however,  does not (yet) contain a "switch" statement.  It is simulated
+in a somewhat clumsy fashion as follows.  The basic idea is that each
+user action is embedded in a function called yycase_<n>
+, for example,
+where <n> is the associated yyn index in "yyaction()". A dictionary,
+"yyswitch", is setup where each key,value pair is {<n>, yycase_<n>}.
+This allows the yyaction() procedure to use yyn to probe the dictionary
+(in o(1) time) and execute the corresponding yycase_<n> function.
+Note that the "yycase_<n> procedures are defined within the YYParser class
+so that "self" is available.
+<p>
+The complication is that the user-defined action can modify the "$$""
+value in its code. The "$$" value is actually a reference to the variable
+"yyval". So, somehow, the final value of $$ must be passed out of the
+user"s action code.
+<p>
+In order to make this work, it is necessary to rely on a "feature"
+of python function calls.  This feature is that passing a mutable
+object into a function as an argument allows the body of that function
+to modify that mutable argument.
+<p>
+So, the solution is to define a python helper class, YYLVAL, defined
+as follows:
+<pre>
+  class YYVAL:
+    def __init__(self, yyval) : self.yyval = yyval
+</pre>
+Assuming the yyvalp argument is an instance of  YYVAL, we get the
+following code sequence for a user action.
+<pre>
+def yycase_<n> (self, yyvalp, yyn, yystack, yylen, yyerror, yyloc) :
+  yyval = yyvalp.yyval
+  try :
+    <user"s action code with braces removed and indented 4 spaces>
+  finally :
+    yyvalp.yyval = yyval
+#end yycase_<n>
+...
+yyswitch[<n>] = yycase_<n>
+</pre>
+Remember that this function may return something like YYABORT if the
+user code does such a return statement. For this reason, the user"s
+code is wrapped in a "try:...finally:..." to ensure that yyval is
+always properly stored.  Also note that if "%locations" is not defined,
+the the "yyloc" argument will not be present.
+<p>
+The corresponding generic code in "yyaction()" in the parser looks
+like this.
+<pre>
+  if (yyn in self.yyswitch) :
+    action = self.yyswitch[yyn]
+    yyvalp = YYVAL(yyval)
+    status = action(yyvalp, yyn, yystack, yylen, yyloc)
+    yyval = yyvalp.yyval
+    if(status != None) : return status
+    else: # no such action index; ignore
+      pass
+</pre>
+Here, the "yyswitch" dictionary is probed to see if the specified
+"yyn" is defined. Assuming so, then the corresponding user code
+procedure is extracted.  The current value of yyval is stored in an
+instance of YYVAL, and the user action procedure is invoked with all
+the necessary arguments. The return result from the user action
+procedure is captured. If it is "None", then no return was executed and
+yyaction can continue on. If the return status is something like
+YYABORT, then an immediate return is executed.
+<p>
+One last point, since the user code is in its own procedure and is
+defined in the YYParser class, the code may need to use python "global"
+statements to access module level declarations.
+
+<h2 class="break"><a name="%code Summary"><u>%code Summary</u></a></h2>
+
+The "%code" directive inserts code verbatim into the output parser
+source at any of a predefined set of locations.  It thus serves as a
+flexible and user-friendly alternative to the traditional Yacc
+prologue, "%{CODE%}".  This section summarizes the functionality of
+"%code" for Python.
+<p>
+For any particular qualifier or for the unqualified form, if there
+are multiple occurrences of the "%code" directive, Bison concatenates
+the specified code in the order in which it appears in the grammar file.
+<p>
+Not all qualifiers are accepted for Python.  Unaccepted
+qualifiers produce an error.
+The accepted qualifiers are described here.
+
+<ul>
+<li> <i>%code imports {...}</i><br>
+     Purpose: This is the best place to write Python
+     import directives; it may also be used for copyright notices.
+     <p>
+     Location(s): For python, it is at the beginning of the module/file.
+<p>
+<li> <i>%code requires {...}</i><br>
+     Purpose: This is the best place to write type
+     declarations.
+     <p>
+     Location(s):  For python, this code is placed just
+     after "%code imports".
+<p>
+<li> <i>%code provides {...}</i><br>
+     Purpose: This is the best place to write additional
+          definitions and declarations that should be provided to other
+          modules.
+     <p>
+     Location(s): For python, this code is
+          placed right after the "%code requires" directives.
+<p>
+<li> <i>%code top {...}</i><br>
+     Purpose: The unqualified "%code" or "%code requires" should
+     usually be more appropriate than "%code top".  However,
+     occasionally it is necessary to insert code much nearer the
+     top of the parser implementation file.
+     <p>
+     Location(s): For python, this code is placed just before after
+     any "%code imports" directives.
+<p>
+<li> <i>%code {...}</i><br>
+     Purpose: Any additional code that must be part of the YYParser class.
+     <p>
+     Location(s): For python, this code is placed just at the end
+     of the YYParser class and properly indented so it is considered part
+     of that class.
+<p>
+<li> <i>%code init { ... }</i><br>
+     Purpose: Add code to the constructor.
+     <p>
+     Location: For python this code is inserted at the beginning of the parser constructor body.
+<p>
+<li> <i>%% ...</i><br>
+     Purpose: The epilogue has the same meaning as in C/C++/Java code and it can
+     be used to define other declarations used by the parser.  The epilogue
+     code is the last code in the produced python parser file.
+     <p>
+     Location: For python code following the final %% is inserted at the
+     very end of module file and is not indented.
+</ul>
+<p>
+Though we say the insertion locations are language-dependent, they
+are technically skeleton-dependent. The python skeleton has been written
+to choose its locations consistently with the behavior of
+the standard Bison skeletons.
+
+<h2 class="break"><a name="Misc. Directives"><u>Miscellaneous Directives</u></a></h2>
+The following directives are supported in python with pretty much standard semantics.
+<ul>
+<li> %define extends {SUPERCLASS}
+<li> %define api.location.type {TYPE}
+<li> %define api.prefix {PREFIX}
+<li> %define api.push-pull KIND
+<li> %define api.token.prefix {PREFIX}
+<li> %define api.value.type SUPPORT
+<li> %define api.value.type {TYPE}
+<li> %define parse.trace
+</ul>
+
+<h2><a name="references"><u>References</u></a></h2>
+<ol>
+<li>http://www.gnu.org/software/bison/
+</ol>
+
+<h2><a name="changelog"><u>Change Log</u></a></h2>
+<b>Version 1.0:</b>
+<ul>
+<li>10/11/2013 &ndash; Initial Release
+</ul>
+
+</body>
+</html>
+
+
+
+
+
+
+

@@ -1,0 +1,40 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test push parsing: Trivial Push Parser with %initial-action"
+
+B=YYParser
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function testcase {
+    tc=0
+    c=0
+    FAILED=""
+    clean
+    rm -f $B.py
+    # Generate a push only parser
+    bison -Dapi.push-pull=push $SK -o $B.py $B.y
+    # Look for markers in the generated parser
+    c=`grep -c '^[ ]*sys.stdout.write("Initial action invoked\\\\n")' YYParser.py`
+    if test "x$c" != x1 ; then FAILED=1; fi
+    # Run the parser
+    python YYParser.py >./stdout 2>./stderr
+    out=`cat ./stdout`
+    c=`grep -c '^Initial action invoked$' ./stdout`
+    if test "x$c" != x1 ; then FAILED=1; fi
+
+    if test "$FAILED" == 1 ; then
+      echo "***Fail"
+    fi
+}
+
+function testall() {
+testcase
+}
+
+run

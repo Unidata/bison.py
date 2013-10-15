@@ -1,0 +1,199 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test push parsing: Calc parser with %locations %code lexer and api.push-pull both"
+
+B=Calc
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+    rm -f locations output
+}
+
+function createinput() {
+cat >./input <<EOF
+1 + 2 * 3 = 7
+1 + 2 * -3 = -5
+
+-1^2 = -1
+(-1)^2 = 1
+
+---1 = -1
+
+1 - 2 - 3 = -4
+1 - (2 - 3) = 2
+
+2^2^3 = 256
+(2^2)^3 = 64
+EOF
+}
+
+function createexpout() {
+cat >./expout <<EOF
+total = 7
+total = -5
+total = -1
+total = 1
+total = -1
+total = -4
+total = 2
+total = 256
+total = 64
+EOF
+}
+
+function createlocations() {
+cat >./locations <<EOF
+Next token is token "number" (1.1: 1)
+Next token is token '+' (1.3: None)
+Next token is token "number" (1.5: 2)
+Next token is token '*' (1.7: None)
+Next token is token "number" (1.9: 3)
+Next token is token '=' (1.11: None)
+Next token is token '=' (1.11: None)
+Next token is token '=' (1.11: None)
+Next token is token "number" (1.13: 7)
+Next token is token '\n' (2.1: None)
+Next token is token '\n' (2.1: None)
+Next token is token "number" (2.2: 1)
+Next token is token '+' (2.4: None)
+Next token is token "number" (2.6: 2)
+Next token is token '*' (2.8: None)
+Next token is token '-' (2.10: None)
+Next token is token "number" (2.11: 3)
+Next token is token '=' (2.13: None)
+Next token is token '=' (2.13: None)
+Next token is token '=' (2.13: None)
+Next token is token '=' (2.13: None)
+Next token is token '-' (2.15: None)
+Next token is token "number" (2.16: 5)
+Next token is token '\n' (3.1: None)
+Next token is token '\n' (3.1: None)
+Next token is token '\n' (3.1: None)
+Next token is token '\n' (4.1: None)
+Next token is token '-' (4.2: None)
+Next token is token "number" (4.3: 1)
+Next token is token '^' (4.4: None)
+Next token is token "number" (4.5: 2)
+Next token is token '=' (4.7: None)
+Next token is token '=' (4.7: None)
+Next token is token '=' (4.7: None)
+Next token is token '-' (4.9: None)
+Next token is token "number" (4.10: 1)
+Next token is token '\n' (5.1: None)
+Next token is token '\n' (5.1: None)
+Next token is token '\n' (5.1: None)
+Next token is token '(' (5.2: None)
+Next token is token '-' (5.3: None)
+Next token is token "number" (5.4: 1)
+Next token is token ')' (5.5: None)
+Next token is token ')' (5.5: None)
+Next token is token '^' (5.6: None)
+Next token is token "number" (5.7: 2)
+Next token is token '=' (5.9: None)
+Next token is token '=' (5.9: None)
+Next token is token "number" (5.11: 1)
+Next token is token '\n' (6.1: None)
+Next token is token '\n' (6.1: None)
+Next token is token '\n' (7.1: None)
+Next token is token '-' (7.2: None)
+Next token is token '-' (7.3: None)
+Next token is token '-' (7.4: None)
+Next token is token "number" (7.5: 1)
+Next token is token '=' (7.7: None)
+Next token is token '=' (7.7: None)
+Next token is token '=' (7.7: None)
+Next token is token '=' (7.7: None)
+Next token is token '-' (7.9: None)
+Next token is token "number" (7.10: 1)
+Next token is token '\n' (8.1: None)
+Next token is token '\n' (8.1: None)
+Next token is token '\n' (8.1: None)
+Next token is token '\n' (9.1: None)
+Next token is token "number" (9.2: 1)
+Next token is token '-' (9.4: None)
+Next token is token "number" (9.6: 2)
+Next token is token '-' (9.8: None)
+Next token is token '-' (9.8: None)
+Next token is token "number" (9.10: 3)
+Next token is token '=' (9.12: None)
+Next token is token '=' (9.12: None)
+Next token is token '-' (9.14: None)
+Next token is token "number" (9.15: 4)
+Next token is token '\n' (10.1: None)
+Next token is token '\n' (10.1: None)
+Next token is token '\n' (10.1: None)
+Next token is token "number" (10.2: 1)
+Next token is token '-' (10.4: None)
+Next token is token '(' (10.6: None)
+Next token is token "number" (10.7: 2)
+Next token is token '-' (10.9: None)
+Next token is token "number" (10.11: 3)
+Next token is token ')' (10.12: None)
+Next token is token ')' (10.12: None)
+Next token is token '=' (10.14: None)
+Next token is token '=' (10.14: None)
+Next token is token "number" (10.16: 2)
+Next token is token '\n' (11.1: None)
+Next token is token '\n' (11.1: None)
+Next token is token '\n' (12.1: None)
+Next token is token "number" (12.2: 2)
+Next token is token '^' (12.3: None)
+Next token is token "number" (12.4: 2)
+Next token is token '^' (12.5: None)
+Next token is token "number" (12.6: 3)
+Next token is token '=' (12.8: None)
+Next token is token '=' (12.8: None)
+Next token is token '=' (12.8: None)
+Next token is token "number" (12.10: 256)
+Next token is token '\n' (13.1: None)
+Next token is token '\n' (13.1: None)
+Next token is token '(' (13.2: None)
+Next token is token "number" (13.3: 2)
+Next token is token '^' (13.4: None)
+Next token is token "number" (13.5: 2)
+Next token is token ')' (13.6: None)
+Next token is token ')' (13.6: None)
+Next token is token '^' (13.7: None)
+Next token is token "number" (13.8: 3)
+Next token is token '=' (13.10: None)
+Next token is token '=' (13.10: None)
+Next token is token "number" (13.12: 64)
+Next token is token '\n' (14.1: None)
+Next token is token '\n' (14.1: None)
+EOF
+}
+
+function testcase {
+    tc=0
+    c=0
+    FAILED=""
+    clean
+    rm -f $B.py
+    # Generate a push + pull parser
+    bison -Dapi.push-pull=both $SK -o $B.py $B.y
+    # Verify we have a push parser
+    c=`grep -c '^  def  *push_parse_initialize *(self).*$' $B.py`
+    if test "x$c" != x1 ; then FAILED=1; fi
+    # Run the parser
+    createinput
+    python $B.py < ./input >./stdout 2>./stderr
+
+    # Test the calculator output
+    createexpout
+    if ! diff expout stdout ; then FAILED=1; fi    
+
+    # Extract the "Next token" lines from the parser trace output
+    # and compare to file locations
+    createlocations
+    rm -f tmp
+    sed -e '/^Next token.*$/p' -e d <./stderr >./tmp
+    if ! diff tmp locations ; then FAILED=1; fi
+}
+
+function testall() {
+testcase
+}
+run

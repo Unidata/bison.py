@@ -1,0 +1,7 @@
+include COPYRIGHT
+include Makefile
+include python.skel
+include manual.html
+recursive-include tests Makefile run *.y
+
+

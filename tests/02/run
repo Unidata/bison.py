@@ -1,0 +1,65 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test Calculator with %locations and %error-verbose"
+
+B=calc
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function createexpout() {
+cat > expout <<EOF
+total = 7
+total = -5
+total = -1
+total = 1
+total = -1
+total = -4
+total = 2
+total = 256
+total = 64
+EOF
+}
+
+function createinput() {
+cat >input <<EOF
+1 + 2 * 3 = 7
+1 + 2 * -3 = -5
+
+-1^2 = -1
+(-1)^2 = 1
+
+---1 = -1
+
+1 - 2 - 3 = -4
+1 - (2 - 3) = 2
+
+2^2^3 = 256
+(2^2)^3 = 64
+EOF
+}
+
+# calctest
+function calctest {
+    FAILED=""
+    clean
+    rm -f $B.py
+    bison $SK -o $B.py $B.y
+    createinput
+    createexpout
+    python $B.py <./input >./stdout 2>./stderr
+    if ! diff expout stdout ; then
+      echo "***Fail: $1"
+      FAILED=1
+    fi
+}
+
+function testall() {
+calctest
+}
+
+run

@@ -1,0 +1,47 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+
+title "Test python syntax error handling without error token"
+
+B=YYParser
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function testcase {
+    tc=0
+    c=0
+    FAILED=""
+    clean
+    rm -f $B.py
+    bison $SK -o $B.py $B.y
+    echo "syntax error" >./experr
+    # case 1 should have no error
+    python YYParser.py aa >./stdout 2>./stderr
+    f=`cat ./stderr`
+    if  test "x$f" != x ; then FAILED=1; fi
+    python YYParser.py ab >./stdout 2>./stderr
+    if ! diff experr stderr ; then FAILED=1; fi
+    python YYParser.py ba >./stdout 2>./stderr
+    if ! diff experr stderr ; then FAILED=1; fi
+    if test "$FAILED" == 1 ; then
+      echo "***Fail"
+    fi
+}
+
+function testall() {
+testcase
+if test "x$FAILED" = "x" ; then
+  echo "*** All Tests Passed"
+fi
+exit $FAILED
+}
+
+case "x$1" in
+xclean) clean;;
+*) testall;;
+esac
+exit

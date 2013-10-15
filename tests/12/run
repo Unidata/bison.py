@@ -1,0 +1,32 @@
+#!/bin/bash
+#set -x
+
+source ../common.sh
+title "Test python test defining %code lexer but not %lex-param"
+
+B=YYParser
+
+function clean {
+    rm -f tmp experr expout stdout stderr input *.py *.pyc
+}
+
+function testcase {
+    tc=0
+    c=0
+    FAILED=""
+    clean
+    rm -f $B.py
+    bison $SK -o $B.py $B.y
+    # Look for markers in the generated parser
+    c=`grep -c '^ *# Minimal lexer *$' YYParser.py`
+    if test "x$c" != x1 ; then FAILED=1; fi
+    if test "$FAILED" == 1 ; then
+      echo "***Fail"
+    fi
+}
+
+function testall() {
+testcase
+}
+
+run
